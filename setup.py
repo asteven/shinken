@@ -50,7 +50,7 @@ DEFAULT_GROUP = 'shinken'
 from distutils import log
 from distutils.core import Command
 from distutils.command.build import build as _build
-from distutils.command.install import install as _install
+from setuptools.command.install import install as _install
 from distutils.util import change_root
 from distutils.errors import DistutilsOptionError
 
