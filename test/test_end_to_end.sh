@@ -1,22 +1,22 @@
 #!/bin/bash
-#Copyright (C) 2009-2010 :
-#    Gabes Jean, naparuba@gmail.com
-#    Gerhard Lausser, Gerhard.Lausser@consol.de
+# Copyright (C) 2009-2010:
+#     Gabes Jean, naparuba@gmail.com
+#     Gerhard Lausser, Gerhard.Lausser@consol.de
 #
-#This file is part of Shinken.
+# This file is part of Shinken.
 #
-#Shinken is free software: you can redistribute it and/or modify
-#it under the terms of the GNU Affero General Public License as published by
-#the Free Software Foundation, either version 3 of the License, or
-#(at your option) any later version.
+# Shinken is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
 #
-#Shinken is distributed in the hope that it will be useful,
-#but WITHOUT ANY WARRANTY; without even the implied warranty of
-#MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#GNU Affero General Public License for more details.
+# Shinken is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU Affero General Public License for more details.
 #
-#You should have received a copy of the GNU Affero General Public License
-#along with Shinken.  If not, see <http://www.gnu.org/licenses/>.
+# You should have received a copy of the GNU Affero General Public License
+# along with Shinken.  If not, see <http://www.gnu.org/licenses/>.
 
 
 #set -x
@@ -29,15 +29,16 @@ echo "Going to dir $DIR/.."
 cd $DIR/..
 
 
+NB_CPUS=`cat /proc/cpuinfo  | grep 'processor' | wc -l` || 4
+echo "NB CPUS: " $NB_CPUS
 
 
-
-#check for a process existance with good number
+# check for a process existance with good number
 function check_process_nb {
-    NB=`ps -ef | grep python | grep -v grep | grep "shinken-"$1 | wc -l`
+    NB=`ps -ef | grep -v grep | grep "shinken-"$1 | wc -l`
     if [ $NB != "$2" ]
     then
-	echo "Error : There is not enouth $1 launched (only $NB)."
+	echo "Error: There is not enough $1 launched (only $NB)."
 	exit 2
     else
 	echo "Ok, got $NB $1"
@@ -45,11 +46,11 @@ function check_process_nb {
 }
 
 function is_file_present {
-    if [ -f $1 ]
+    if [ -e $1 ]
     then
 	echo "File $1 is present."
     else
-	echo "Error : File $1 is missing!"
+	echo "Error: File $1 is missing!"
 	exit 2
     fi
 }
@@ -58,7 +59,7 @@ function string_in_file {
     grep "$1" $2
     if [ $? != 0 ]
     then
-	echo "Error : the file $2 is missing string $1 !"
+	echo "Error: the file $2 is missing string $1!"
 	exit 2
     else
 	echo "The string $1 is in $2"
@@ -71,67 +72,71 @@ function print_date {
 }
 
 function check_good_run {
-    VAR="$1"
+    VAR="$3"
+    RUN="$2"
+    LOG="$3"
+
     echo "Check for $NB_SCHEDULERS Scheduler"
     check_process_nb scheduler $NB_SCHEDULERS
-    is_file_present $VAR/schedulerd.pid
+    is_file_present $RUN/schedulerd.pid
 
-    echo "Check for $NB_POLLERS pollers (1 master, 1 for multiporcess module (queue manager), 4 workers)"
+    echo "Check for $NB_POLLERS pollers (1 master, and 4 workers)"
     check_process_nb poller $NB_POLLERS
-    is_file_present $VAR/pollerd.pid
+    is_file_present $RUN/pollerd.pid
 
     echo "Check for $NB_REACTIONNERS reactionners (1 master, 1 for multiporcess module (queue manager) 1 worker)"
     check_process_nb reactionner $NB_REACTIONNERS
-    is_file_present $VAR/reactionnerd.pid
+    is_file_present $RUN/reactionnerd.pid
 
-    echo "Check for $NB_BROKERS brokers (one master, one for livestatus.dat)"
+    echo "Check for $NB_BROKERS brokers (one master, one for livestatus.dati, one for WebUI)"
     check_process_nb broker $NB_BROKERS
-    is_file_present $VAR/brokerd.pid
+    is_file_present $RUN/brokerd.pid
 
     echo "Check for $NB_RECEIVERS receivers (one master)"
     check_process_nb receiver $NB_RECEIVERS
-    is_file_present $VAR/receiverd.pid
+    is_file_present $RUN/receiverd.pid
 
 
     echo "Check for $NB_ARBITERS arbiter"
     check_process_nb arbiter $NB_ARBITERS
-    is_file_present $VAR/arbiterd.pid
+    is_file_present $RUN/arbiterd.pid
 
     echo "Now checking for good file prensence"
     ls var
-    is_file_present $VAR/nagios.log
-    string_in_file "Waiting for initial configuration" $VAR/nagios.log
-    string_in_file "First scheduling" $VAR/nagios.log
-    string_in_file "OK, all schedulers configurations are dispatched :)" $VAR/nagios.log
-    string_in_file "OK, no more reactionner sent need" $VAR/nagios.log
-    string_in_file "OK, no more poller sent need" $VAR/nagios.log
-    string_in_file "OK, no more broker sent need" $VAR/nagios.log
+    is_file_present $LOG/shinken.log
+    string_in_file "Waiting for initial configuration" $LOG/shinken.log
+#    string_in_file "First scheduling" $LOG/shinken.log
+    string_in_file "OK, all schedulers configurations are dispatched :)" $LOG/shinken.log
+    string_in_file "OK, no more reactionner sent need" $LOG/shinken.log
+    string_in_file "OK, no more poller sent need" $LOG/shinken.log
+    string_in_file "OK, no more broker sent need" $LOG/shinken.log
 }
 
 function localize_config {
     # change paths in config files (/usr/local/shinken/*) to
     # relative paths, so this test runs only in the current directory.
-    # takes nagios.cfg and shinken-specific.cfg
-    cp $1 /tmp/nagios.cfg.save
+    # takes shinken.cfg and shinken-specific.cfg
+    cp $1 /tmp/shinken.cfg.save
     cp $2 /tmp/shinken-specific.cfg.save
-    sed -e 's/\/usr\/local\/shinken\///g' < /tmp/nagios.cfg.save > $1
+    sed -e 's/\/usr\/local\/shinken\///g' < /tmp/shinken.cfg.save > $1
     sed -e 's/\/usr\/local\/shinken\/var\///g' < /tmp/shinken-specific.cfg.save > $2
 }
 
 function globalize_config {
-    mv /tmp/nagios.cfg.save $1
+    mv /tmp/shinken.cfg.save $1
     mv /tmp/shinken-specific.cfg.save $2
 }
 
 
 
-#Standard launch process packets
-NB_SCHEDULERS=1
-NB_POLLERS=6
+# Standard launch process packets
+NB_SCHEDULERS=2
+# NB Poller is 1 for core + nb cpus
+NB_POLLERS=$((2 + $NB_CPUS))
 NB_REACTIONNERS=3
-NB_BROKERS=2
-NB_RECEIVERS=1
-NB_ARBITERS=2  # master itself & namedpipe-autogenerated !
+NB_BROKERS=4
+NB_RECEIVERS=2
+NB_ARBITERS=3  # master itself & namedpipe-autogenerated!
 
 
 
@@ -146,18 +151,19 @@ echo "#                                                                         
 echo "####################################################################################"
 
 echo "Now we can start some launch tests"
-localize_config etc/nagios.cfg etc/shinken-specific.cfg
+localize_config etc/shinken.cfg etc/shinken-specific.cfg
 bin/launch_all_debug.sh
-globalize_config etc/nagios.cfg etc/shinken-specific.cfg
+globalize_config etc/shinken.cfg etc/shinken-specific.cfg
 
 
 echo "Now checking for existing apps"
 
 echo "we can sleep 5sec for conf dispatching and so good number of process"
-sleep 5
+sleep 20
 
 #Now check if the run looks good with var in the direct directory
-check_good_run var
+check_good_run /var/lib/shinken /var/run/shinken /var/log/shinken
+#var var var
 
 echo "First launch check OK"
 
@@ -178,7 +184,7 @@ python setup.py install --root=/tmp/moncul --record=INSTALLED_FILES --install-sc
 
 if [ $? != '0' ]
 then
-    echo "Error : the dummy install failed."
+    echo "Error: the dummy install failed."
     exit 2
 fi
 echo "Dummy install OK"
@@ -197,16 +203,15 @@ echo "Now a REAL install"
 sudo python setup.py install --install-scripts=/usr/bin
 if [ $? != '0' ]
 then
-    echo "Error : the real install failed."
+    echo "Error: the real install failed."
     exit 2
 fi
 echo "Real install OK"
 
-#Useful to take it from setup_parameter? It's just for coding here
+# Useful to take it from setup_parameter? It's just for coding here
 ETC=/etc/shinken
-is_file_present $ETC/nagios.cfg
-is_file_present $ETC/shinken-specific.cfg
-string_in_file "servicegroups.cfg" $ETC/nagios.cfg
+is_file_present $ETC/shinken.cfg
+string_in_file "servicegroups.cfg" $ETC/shinken.cfg
 is_file_present /usr/bin/shinken-arbiter
 
 ps -fu shinken
@@ -220,9 +225,9 @@ sudo /etc/init.d/shinken-broker -d start
 sudo /etc/init.d/shinken-receiver -d start
 sudo /etc/init.d/shinken-arbiter -d start
 
-echo "We will sleep again 5sec so every one is quite stable...."
-sleep 5
-check_good_run /var/lib/shinken
+echo "We will sleep again 15sec so every one is quite stable...."
+sleep 20
+check_good_run /var/lib/shinken /var/run/shinken /var/log/shinken
 
 sudo /etc/init.d/shinken-arbiter status
 sudo /etc/init.d/shinken-scheduler status
@@ -238,7 +243,7 @@ sudo /etc/init.d/shinken-reactionner stop
 sudo /etc/init.d/shinken-broker stop
 sudo /etc/init.d/shinken-receiver stop
 
-sleep 2
+sleep 5
 ps -fu shinken
 
 check_process_nb arbiter 0
@@ -263,107 +268,121 @@ echo "#                                                                         
 echo "####################################################################################"
 
 echo "Now we can start some launch tests"
-localize_config etc/nagios.cfg test/etc/test_stack2/shinken-specific-ha-only.cfg
+localize_config test/etc/test_stack2/shinken.cfg test/etc/test_stack2/shinken-specific-ha-only.cfg
 test/bin/launch_all_debug2.sh
-globalize_config etc/nagios.cfg test/etc/test_stack2/shinken-specific-ha-only.cfg
+globalize_config test/etc/test_stack2/shinken.cfg test/etc/test_stack2/shinken-specific-ha-only.cfg
 
 
 echo "Now checking for existing apps"
 
 echo "we can sleep 5sec for conf dispatching and so good number of process"
-sleep 5
+sleep 30
 
-#The number of process changed, we mush look for it
+# The number of process changed, we mush look for it
 
 
-#Standard launch process packets
-NB_SCHEDULERS=2
-#6 for stack 1, and 2 for 2 (not active, so no worker)
-NB_POLLERS=8
-#3 for stack1, 2 for stack2 (no worker from now)
+# Standard launch process packets
+NB_SCHEDULERS=4
+# 1+NB_CPUS for stack 1, and 1 for 2 (not active, so no worker)
+NB_POLLERS=$((2 + $NB_CPUS + 2))
+# 2 for stack1, 1 for stack2 (no worker from now)
 NB_REACTIONNERS=5
-#2 for stack 1, 1 for stack2 (no livesatus.dat nor log worker launch)
-NB_BROKERS=3
-#Still 1 receiver
-NB_RECEIVERS=1
-#still 1
-NB_ARBITERS=2
+# 2 for stack 1, 1 for stack2 (no livesatus.dat nor log worker launch)
+NB_BROKERS=5
+# Still 1 receiver
+NB_RECEIVERS=2
+# Two arbiters, each got 3 process
+NB_ARBITERS=6
 
-#Now check if the run looks good with var in the direct directory
-check_good_run var
+# Now check if the run looks good with var in the direct directory
+check_good_run /var/lib/shinken /var/run/shinken /var/log/shinken
+#var var var
 
 echo "All launch of HA daemons is OK"
 
-#Now we kill and see if all is OK :)
-#We clean the log file
-#$VAR/nagios.log
+# Now we kill and see if all is OK :)
+# We clean the log file
+#> $VAR/shinken.log
 
 
-#We kill the most important thing first : the scheduler-Master
+# We kill the most important thing first: the scheduler-Master
 bin/stop_scheduler.sh
 
-#We sleep to be sruethe scheduler see us
-sleep 4
-NB_SCHEDULERS=1
+# We sleep to be sruethe scheduler see us
+sleep 60
+NB_SCHEDULERS=2
 print_date
 
 
-#First we look is the arbiter saw the scheduler as dead
-string_in_file "Warning : Scheduler scheduler-Master had the configuration 0 but is dead, I am not happy." $VAR/nagios.log
-#Then we look if the scheduler-spare got a conf from arbiter (here, view from the arbiter)
-string_in_file "Dispatch OK of for conf in scheduler scheduler-Spare" $VAR/nagios.log
+# Then we look if the scheduler-spare got a conf from arbiter (here, view from the arbiter)
+string_in_file "Dispatch OK of conf in scheduler scheduler-Spare" $VAR/shinken.log
 
-#then is the broker know it and try to connect to the new scheduler-spare
-string_in_file "\[broker-Master\] Connexion OK to the scheduler scheduler-Spare" $VAR/nagios.log
+# then is the broker know it and try to connect to the new scheduler-spare
+string_in_file "\[broker-Master\] Connection OK to the scheduler scheduler-Spare" $VAR/shinken.log
 
 
 echo "Now stop the poller-Master"
-#Now we stop the poller. We will see the sapre take the job (we hope in fact :) )
+# Now we stop the poller. We will see the sapre take the job (we hope in fact :) )
 bin/stop_poller.sh
-#check_good_run var
-sleep 4
+# check_good_run var
+sleep 60
 print_date
 
-#The master should be look dead
-string_in_file "Warning : The poller poller-Master seems to be down, I must re-dispatch its role to someone else." $VAR/nagios.log
-#The spare should got the conf
-string_in_file "\[All\] Dispatch OK of for configuration 0 to poller poller-Slave" $VAR/nagios.log
-#And he should got the scheduler link (the sapre one)
-string_in_file "\[poller-Slave\] Connexion OK with scheduler scheduler-Spare" $VAR/nagios.log
+# The master should be look dead
+string_in_file "Warning : \[All\] The poller poller-Master seems to be down, I must re-dispatch its role to someone else." $VAR/shinken.log
+# The spare should got the conf
+string_in_file "\[All\] Dispatch OK of configuration 0 to poller poller-Slave" $VAR/shinken.log
+# And he should got the scheduler link (the sapre one)
+string_in_file "\[poller-Slave\] Connection OK with scheduler scheduler-Spare" $VAR/shinken.log
+#string_in_file "\[poller-Slave\] Connection OK with scheduler scheduler-Spare" $VAR/pollerd-2.log
 
 
 echo "Now stop the reactionner"
 bin/stop_reactionner.sh
-#check_good_run var
-sleep 4
+# check_good_run var
+sleep 60
 print_date
 
-#The master should be look dead
-string_in_file "\[All\] Warning : The reactionner reactionner-Master seems to be down, I must re-dispatch its role to someone else." $VAR/nagios.log
-#The spare should got the conf
-string_in_file "\[All\] Dispatch OK of for configuration 0 to reactionner reactionner-Spare" $VAR/nagios.log
-#And he should got the scheduler link (the sapre one)
-string_in_file "\[reactionner-Spare\] Connexion OK with scheduler scheduler-Spare" $VAR/nagios.log
+# The master should be look dead
+string_in_file "Warning : \[All\] The reactionner reactionner-Master seems to be down, I must re-dispatch its role to someone else." $VAR/shinken.log
+# The spare should got the conf
+string_in_file "\[All\] Dispatch OK of configuration 0 to reactionner reactionner-Spare" $VAR/shinken.log
+# And he should got the scheduler link (the sapre one)
+string_in_file "\[reactionner-Spare\] Connection OK with scheduler scheduler-Spare" $VAR/shinken.log
+# string_in_file "\[reactionner-Spare\] Connection OK with scheduler scheduler-Spare" $VAR/reactionnerd-2.log
 
 
 echo "Now we stop... the Broker!"
 bin/stop_broker.sh
-#check_good_run var
-sleep 4
+# check_good_run var
+sleep 60
 print_date
 
-#The master should be look dead
-string_in_file "\[All\] Warning : The broker broker-Master seems to be down, I must re-dispatch its role to someone else." $VAR/nagios.log
-#The spare should got the conf
-string_in_file "\[All\] Dispatch OK of for configuration 0 to broker broker-Slave" $VAR/nagios.log
-#And he should got the scheduler link (the spare one)
-string_in_file "\[broker-Slave\] Connexion OK to the scheduler scheduler-Spare" $VAR/nagios.log
-#And to other satellites
-string_in_file "\[broker-Slave\] Connexion OK to the reactionner reactionner-Spare" $VAR/nagios.log
-string_in_file "\[broker-Slave\] Connexion problem to the poller poller-Master" $VAR/nagios.log
-#And should have load the modules
-string_in_file "\[broker-Slave\] I correctly loaded the modules : \[Simple-log,Livestatus\]" $VAR/nagios.log
+# The master should be look dead
+string_in_file "Warning : \[All\] The broker broker-Master seems to be down, I must re-dispatch its role to someone else." $VAR/shinken.log
+# The spare should got the conf
+string_in_file "\[All\] Dispatch OK of configuration 0 to broker broker-Slave" $VAR/shinken.log
+# And he should got the scheduler link (the spare one)
+string_in_file "\[broker-Slave\] Connection OK to the scheduler scheduler-Spare" $VAR/shinken.log
+# And to other satellites
+string_in_file "\[broker-Slave\] Connection OK to the reactionner reactionner-Spare" $VAR/shinken.log
+string_in_file "\[broker-Slave\] Connection problem to the poller poller-Master" $VAR/shinken.log
+# And should have load the modules
+string_in_file "\[broker-Slave\] I correctly loaded the modules: \[Simple-log,Livestatus\]" $VAR/shinken.log
 
+
+echo "Now we stop... the Arbiter!"
+# We clean the log first
+> $VAR/shinken.log
+
+bin/stop_arbiter.sh
+sleep 70
+
+echo "OK AND NOW?"
+string_in_file "Arbiter Master is dead. The arbiter Arbiter-spare take the lead"  $VAR/shinken.log
+
+# Look at satellite states
+string_in_file "Setting the satellite broker-Master to a dead state" $VAR/shinken.log
 
 echo "Now we clean it"
 ./clean.sh
@@ -377,47 +396,123 @@ echo "#                                                                         
 echo "####################################################################################"
 
 echo "Now we can start some launch tests"
-localize_config etc/nagios.cfg test/etc/test_stack2/shinken-specific-lb-only.cfg
+localize_config etc/shinken.cfg test/etc/test_stack2/shinken-specific-lb-only.cfg
 test/bin/launch_all_debug3.sh
-globalize_config etc/nagios.cfg test/etc/test_stack2/shinken-specific-lb-only.cfg
+globalize_config etc/shinken.cfg test/etc/test_stack2/shinken-specific-lb-only.cfg
 
 
 echo "Now checking for existing apps"
 
 echo "we can sleep 5sec for conf dispatching and so good number of process"
-sleep 5
+sleep 60
 
-#The number of process changed, we mush look for it
+# The number of process changed, we mush look for it
 
-
-#Standard launch process packets
-NB_SCHEDULERS=2
-#6 for stack 1, and 6 for stack 2
-NB_POLLERS=12
-#3 for stack1, same for stack 2
+# Standard launch process packets
+NB_SCHEDULERS=4
+# 1 + nb cpus for stack 1, and same for stack 2
+NB_POLLERS=$((2 + $NB_CPUS + 2 + $NB_CPUS))
+# 2 for stack1, same for stack 2
 NB_REACTIONNERS=6
-#2 for stack 1, 1 for stack2 (no livestatus nor log worker launch)
-NB_BROKERS=3
-#STill one receivers
-NB_RECEIVERS=1
-#still 1
-NB_ARBITERS=2
+# 2 for stack 1, 1 for stack2 (no livestatus nor log worker launch)
+NB_BROKERS=5
+# STill one receivers
+NB_RECEIVERS=2
+# still 1
+NB_ARBITERS=3
 
-#Now check if the run looks good with var in the direct directory
-check_good_run var
+# Now check if the run looks good with var in the direct directory
+check_good_run /var/lib/shinken /var/run/shinken /var/log/shinken
+#var var var
 
 echo "All launch of LB daemons is OK"
 
 
-#Now look if it's also good in the log file too
-string_in_file "Dispatch OK of for conf in scheduler scheduler-Master-2" $VAR/nagios.log
-string_in_file "Dispatch OK of for conf in scheduler scheduler-Master-1" $VAR/nagios.log
-string_in_file "OK, no more reactionner sent need" $VAR/nagios.log
-string_in_file "OK, no more poller sent need" $VAR/nagios.log
-string_in_file "OK, no more broker sent need" $VAR/nagios.log
+# Now look if it's also good in the log file too
+string_in_file "Dispatch OK of conf in scheduler scheduler-Master-2" $VAR/shinken.log
+string_in_file "Dispatch OK of conf in scheduler scheduler-Master-1" $VAR/shinken.log
+string_in_file "OK, no more reactionner sent need" $VAR/shinken.log
+string_in_file "OK, no more poller sent need" $VAR/shinken.log
+string_in_file "OK, no more broker sent need" $VAR/shinken.log
+
+# Now we will check what happened when we will an alive satellite, and if another active
+# one got configuration again and again (and so don't work...) or if its managed
+echo "Killing Poller 1"
+
+POLLER1_PID=`ps -fu shinken | grep poller | grep -v test_stack2 | grep -v grep |awk '{print $2, $3}' |grep -E " 1$" | awk '{print $1}'`
+kill $POLLER1_PID
+
+echo "sleep some few seconds to see the arbiter react"
+sleep 20
+
+date +%s
+# And we look if the arbiter find that the other poller do not need another configuration send
+string_in_file "Skipping configuration 0 send to the poller poller-Master-2: it already got it" $VAR/shinken.log
+
 
 echo "Now we clean it"
 ./clean.sh
+
+
+
+
+
+
+echo "####################################################################################"
+echo "#                                                                                  #"
+echo "#                          Broker complete links                                   #"
+echo "#                                                                                  #"
+echo "####################################################################################"
+
+echo "Now we can start some launch tests"
+localize_config etc/shinken.cfg test/etc/test_stack2/shinken-specific-bcl.cfg
+test/bin/launch_all_debug7.sh
+globalize_config etc/shinken.cfg test/etc/test_stack2/shinken-specific-bcl.cfg
+
+
+echo "Now checking for existing apps"
+
+echo "we can sleep 5sec for conf dispatching and so good number of process"
+sleep 30
+
+# The number of process changed, we mush look for it
+
+# Standard launch process packets
+NB_SCHEDULERS=4
+# 1 + nb cpus for stack 1, and same for stack 2
+NB_POLLERS=$((2 + $NB_CPUS + 2 + $NB_CPUS))
+# 2 for stack1, same for stack 2
+NB_REACTIONNERS=6
+# 6 : 3 for each brokers, because they are both active, that't the goal of this part of the test!
+NB_BROKERS=6
+# STill one receivers
+NB_RECEIVERS=2
+# still 1
+NB_ARBITERS=3
+
+# Now check if the run looks good with var in the direct directory
+check_good_run /var/lib/shinken /var/run/shinken /var/log/shinken
+#var var var
+
+echo "All launch of LB daemons is OK"
+
+
+# Now look if it's also good in the log file too
+string_in_file "Dispatch OK of conf in scheduler scheduler-Master-2" $VAR/shinken.log
+string_in_file "Dispatch OK of conf in scheduler scheduler-Master-1" $VAR/shinken.log
+string_in_file "\[broker-Master-1\] Connection OK to the scheduler scheduler-Master-1" $VAR/shinken.log
+string_in_file "\[broker-Master-2\] Connection OK to the scheduler scheduler-Master-1" $VAR/shinken2.log
+string_in_file "initial Broks for broker broker-Master-1" $VAR/shinken.log
+string_in_file "initial Broks for broker broker-Master-2" $VAR/shinken2.log
+string_in_file "OK, no more reactionner sent need" $VAR/shinken.log
+string_in_file "OK, no more poller sent need" $VAR/shinken.log
+string_in_file "OK, no more broker sent need" $VAR/shinken.log
+
+echo "Now we clean it"
+./clean.sh
+
+
+
 
 
 
@@ -428,52 +523,266 @@ echo "#                                                                         
 echo "####################################################################################"
 
 echo "Now we can start some launch tests"
-localize_config etc/nagios.cfg test/etc/test_stack2/shinken-specific-passive-poller.cfg
+localize_config etc/shinken.cfg test/etc/test_stack2/shinken-specific-passive-poller.cfg
 test/bin/launch_all_debug4.sh
-globalize_config etc/nagios.cfg test/etc/test_stack2/shinken-specific-passive-poller.cfg
+globalize_config etc/shinken.cfg test/etc/test_stack2/shinken-specific-passive-poller.cfg
 
 
 echo "Now checking for existing apps"
 
 echo "we can sleep 5sec for conf dispatching and so good number of process"
-sleep 5
+sleep 60
 
-#The number of process changed, we mush look for it
+# The number of process changed, we mush look for it
 
 
-#Standard launch process packets
-NB_SCHEDULERS=2
-#6 for stack 1, and 6 for stack 2
-NB_POLLERS=12
-#3 for stack1, Only 2 for stack 2 because it is not active
+# Standard launch process packets
+NB_SCHEDULERS=4
+# 5 for stack 1, and 5 for stack 2
+NB_POLLERS=$((2 + $NB_CPUS + 2 + $NB_CPUS))
+# 2 for stack1, Only 1 for stack 2 because it is not active
 NB_REACTIONNERS=5
-#2 for stack 1, 1 for stack2 (no livestatus nor log worker launch)
-NB_BROKERS=3
-#Still oen receiver
-NB_RECEIVERS=1
-#still 1
-NB_ARBITERS=2
+# 2 for stack 1, 1 for stack2 (no livestatus nor log worker launch)
+NB_BROKERS=5
+# Still oen receiver
+NB_RECEIVERS=2
+# still 1
+NB_ARBITERS=3
 
-#Now check if the run looks good with var in the direct directory
-check_good_run var
+# Now check if the run looks good with var in the direct directory
+check_good_run /var/lib/shinken /var/run/shinken /var/log/shinken
+#var var var
 
 echo "All launch of LB daemons is OK"
 
 
-#Now look if it's also good in the log file too
-string_in_file "Dispatch OK of for conf in scheduler scheduler-Master-2" $VAR/nagios.log
-string_in_file "Dispatch OK of for conf in scheduler scheduler-Master-1" $VAR/nagios.log
-string_in_file "OK, no more reactionner sent need" $VAR/nagios.log
-string_in_file "OK, no more poller sent need" $VAR/nagios.log
-string_in_file "OK, no more broker sent need" $VAR/nagios.log
+# Now look if it's also good in the log file too
+string_in_file "Dispatch OK of conf in scheduler scheduler-Master-2" $VAR/shinken.log
+string_in_file "Dispatch OK of conf in scheduler scheduler-Master-1" $VAR/shinken.log
+string_in_file "OK, no more reactionner sent need" $VAR/shinken.log
+string_in_file "OK, no more poller sent need" $VAR/shinken.log
+string_in_file "OK, no more broker sent need" $VAR/shinken.log
 # We should see the poller 2 say it is passive
-string_in_file "\[poller-Master-2\] Passive mode enabled." $VAR/nagios.log
+string_in_file "\[poller-Master-2\] Passive mode enabled." $VAR/shinken.log
 # and the schedulers should connect to it too
-string_in_file "Connexion OK to the poller poller-Master-2" $VAR/nagios.log
+string_in_file "Connection OK to the poller poller-Master-2" $VAR/shinken.log
 
 
 echo "Now we clean it"
 ./clean.sh
+
+
+
+
+
+echo "####################################################################################"
+echo "#                                                                                  #"
+echo "#                              Scheduler restart                                   #"
+echo "#                                                                                  #"
+echo "####################################################################################"
+
+
+echo "Now we can start some launch tests"
+localize_config etc/shinken.cfg etc/shinken-specific.cfg
+bin/launch_all_debug.sh
+globalize_config etc/shinken.cfg etc/shinken-specific.cfg
+
+
+echo "Now checking for existing apps"
+
+echo "we can sleep 5sec for conf dispatching and so good number of process"
+sleep 60
+
+# The number of process changed, we mush look for it
+
+# Standard launch process packets
+NB_SCHEDULERS=2
+# NB Poller is 1 for core + nb cpus
+NB_POLLERS=$((2 + $NB_CPUS))
+NB_REACTIONNERS=3
+NB_BROKERS=4
+NB_RECEIVERS=2
+NB_ARBITERS=3  # master itself & namedpipe-autogenerated!
+
+# Now check if the run looks good with var in the direct directory
+check_good_run /var/lib/shinken /var/run/shinken /var/log/shinken
+#var var var
+
+echo "All launch of LB daemons is OK"
+
+
+# Now look if it's also good in the log file too
+string_in_file "Dispatch OK of conf in scheduler scheduler-master" $VAR/shinken.log
+string_in_file "OK, no more reactionner sent need" $VAR/shinken.log
+string_in_file "OK, no more poller sent need" $VAR/shinken.log
+string_in_file "OK, no more broker sent need" $VAR/shinken.log
+
+
+# Now we stop the scheduler and restart it
+# We clean the log and restart teh scheduler
+bin/stop_scheduler.sh
+> $VAR/shinken.log
+sleep 20
+bin/launch_scheduler_debug.sh
+sleep 180
+
+
+
+string_in_file "Warning : Scheduler scheduler-master did not managed its configuration 0,I am not happy." $VAR/shinken.log
+string_in_file "The receiver receiver-1 manage a unmanaged configuration" $VAR/shinken.log
+string_in_file "Dispatch OK of conf in scheduler scheduler-master" $VAR/shinken.log
+string_in_file "Dispatch OK of configuration 0 to poller poller-master" $VAR/shinken.log
+
+echo "Now we clean it"
+./clean.sh
+
+
+
+echo "####################################################################################"
+echo "#                                                                                  #"
+echo "#                              Passive Arbiter                                     #"
+echo "#                                                                                  #"
+echo "####################################################################################"
+
+echo "Now we can start some launch tests"
+localize_config etc/shinken.cfg test/etc/test_stack2/shinken-specific-passive-arbiter.cfg
+test/bin/launch_all_debug5.sh
+globalize_config etc/shinken.cfg test/etc/test_stack2/shinken-specific-passive-arbiter.cfg
+
+
+echo "Now checking for existing apps"
+
+echo "we can sleep 5sec for conf dispatching and so good number of process"
+sleep 60
+
+# The number of process changed, we mush look for it
+
+# Standard launch process packets
+NB_SCHEDULERS=4
+# 5 for stack 1, and 5 for stack 2
+NB_POLLERS=$((2 + $NB_CPUS + 2 + $NB_CPUS))
+# 2 for stack1, Only 1 for stack 2 because it is not active
+NB_REACTIONNERS=5
+# 2 for stack 1, 1 for stack2 (no livestatus nor log worker launch)
+NB_BROKERS=5
+# Still oen receiver
+NB_RECEIVERS=2
+# still 1
+NB_ARBITERS=3
+
+# Now check if the run looks good with var in the direct directory
+check_good_run /var/lib/shinken /var/run/shinken /var/log/shinken
+#var var var
+
+echo "All launch of LB daemons is OK"
+
+
+# Now look if it's also good in the log file too
+string_in_file "Dispatch OK of conf in scheduler scheduler-Master-2" $VAR/shinken.log
+string_in_file "Dispatch OK of conf in scheduler scheduler-Master-1" $VAR/shinken.log
+string_in_file "OK, no more reactionner sent need" $VAR/shinken.log
+string_in_file "OK, no more poller sent need" $VAR/shinken.log
+string_in_file "OK, no more broker sent need" $VAR/shinken.log
+
+# And the string so the spare is taking the control
+string_in_file "Arbiter Master is dead. The arbiter Arbiter-spare take the lead" $VAR/shinken.log
+
+echo "Now we clean it"
+./clean.sh
+
+
+
+
+echo "####################################################################################"
+echo "#                                                                                  #"
+echo "#                          Direct routing for receiver                             #"
+echo "#                                                                                  #"
+echo "####################################################################################"
+
+# Special clean, the previous(?) external command file 
+CMD_FILE=/tmp/tmp-for-receiver-direct-routing.cmd
+rm -f $CMD_FILE
+
+echo "Now we can start some launch tests"
+localize_config etc/shinken.cfg test/etc/test_stack2/shinken-specific-receiver-direct-routing.cfg
+test/bin/launch_all_debug6.sh
+globalize_config etc/shinken.cfg test/etc/test_stack2/shinken-specific-receiver-direct-routing.cfg
+
+
+
+echo "Now checking for existing apps"
+
+echo "we can sleep 5sec for conf dispatching and so good number of process"
+sleep 60
+
+# The number of process changed, we mush look for it
+
+# Standard launch process packets
+NB_SCHEDULERS=4
+# 5 for stack 1, and 5 for stack 2
+NB_POLLERS=$((2 + $NB_CPUS + 2 + $NB_CPUS))
+# 2 for stack1, Only 1 for stack 2 because it is not active
+NB_REACTIONNERS=5
+# 2 for stack 1, 1 for stack2 (no livestatus nor log worker launch)
+NB_BROKERS=5
+# Still oen receiver
+NB_RECEIVERS=3
+# still 1
+NB_ARBITERS=3
+
+# Now check if the run looks good with var in the direct directory
+check_good_run /var/lib/shinken /var/run/shinken /var/log/shinken
+#var var var
+
+echo "All launch of LB daemons is OK"
+
+#Look if the command file is present
+is_file_present $CMD_FILE
+
+# Now look if it's also good in the log file too
+#string_in_file "Dispatch OK of conf in scheduler scheduler-Master-2" $VAR/shinken.log
+string_in_file "Dispatch OK of conf in scheduler scheduler-Master-1" $VAR/shinken.log
+string_in_file "OK, no more reactionner sent need" $VAR/shinken.log
+string_in_file "OK, no more poller sent need" $VAR/shinken.log
+string_in_file "OK, no more broker sent need" $VAR/shinken.log
+string_in_file "OK, no more receiver sent need" $VAR/shinken.log
+
+now=$(date +%s)
+
+printf "[111] ADD_SIMPLE_POLLER;All;newpoller;localhost;8771\n" > $CMD_FILE
+printf "[111] PROCESS_SERVICE_CHECK_RESULT;localhost;LocalDisks;2;Oh yes\n" > $CMD_FILE
+printf "[111] PROCESS_HOST_CHECK_RESULT;localhost;2;Oh yes\n" > $CMD_FILE
+
+
+sleep 20
+
+string_in_file "Dispatch OK of configuration 0 to poller newpoller"   $VAR/shinken.log
+string_in_file "PASSIVE HOST CHECK: localhost;2;Oh yes"   $VAR/shinken.log
+
+# Now we will try to stop the scheduler, and switch to a new one
+echo "STOPPING MASTER SCHEDULER"
+bin/stop_scheduler.sh
+
+sleep 20
+
+date +%s
+#Check if slave scheduler is ok
+string_in_file "Dispatch OK of conf in scheduler scheduler-Master-2"   $VAR/shinken.log
+
+# Clean the log
+> $VAR/shinken.log
+
+printf "[111] ADD_SIMPLE_POLLER;All;newpoller;localhost;8771\n" > $CMD_FILE
+printf "[111] PROCESS_HOST_CHECK_RESULT;localhost;2;Oh yes again\n" > $CMD_FILE
+
+sleep 5
+
+date +%s
+string_in_file "PASSIVE HOST CHECK: localhost;2;Oh yes again"   $VAR/shinken.log
+
+echo "Now we clean it"
+./clean.sh
+
 
 
 echo ""

@@ -1,22 +1,49 @@
+# Copyright (C) 2009-2011:
+#    Gabes Jean, naparuba@gmail.com
+#    Gerhard Lausser, Gerhard.Lausser@consol.de
+#    Gregory Starck, g.starck@gmail.com
+#    Hartmut Goebel, h.goebel@goebel-consult.de
+#
+# This file is part of Shinken.
+#
+# Shinken is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# Shinken is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU Affero General Public License for more details.
+#
+# You should have received a copy of the GNU Affero General Public License
+# along with Shinken.  If not, see <http://www.gnu.org/licenses/>.
+
+
 # /etc/default/shinken
-#$ETC$ is where we put all configuration files
-#$VAR$ is where we put all variables files (pid, and all)
-#$SCRIPTS_BIN$ is where the launch scripts will be send
+# $ETC$ is where we put all configuration files
+# $VAR$ is where we put some variables files (replaced by $RUN$ and $LOG$ for now)
+# $RUN$ is where we put pid files
+# $LOG$ is where we put log files
+# $SCRIPTS_BIN$ is where the launch scripts will be send
 
 
-## These vars will overRide the hardcoded ones in init script
+## These vars will override the hardcoded ones in init script ##
 ETC=$ETC$
 VAR=$VAR$
 BIN=$SCRIPTS_BIN$
+RUN=$RUN$
+LOG=$LOG$
 
 
-###ARBITER PART
-# location of the nagios configuration file
-SHINKENCFG="$ETC/nagios.cfg"
+### ARBITER PART ###
+# location of the shinken configuration file
+# Please update $ETC$ instead of this one.
+SHINKENCFG="$ETC/shinken.cfg"
 
 # We got 2 configs because tools like Centreon don't generate all
-#configuration (only the shinken.cfg part)
-SHINKENSPECIFICCFG="$ETC/shinken-specific.cfg"
+# configuration (only the shinken.cfg part)
+#SHINKENSPECIFICCFG="$ETC/shinken-specific.cfg"
 
 # The command to launch
 ARBITERDAEMON=$BIN/shinken-arbiter
@@ -24,66 +51,84 @@ ARBITERDAEMON=$BIN/shinken-arbiter
 #The ARBITER PID
 if [ -r $SHINKENCFG ] ; then
     tmppid=`grep 'lock_file=' $SHINKENCFG | grep -v '#' | tail -n 1 | awk -F '=' '{print $2}'`
-    ARBITERPID=${tmppid-$VAR/arbiterd.pid}
+    ARBITERPID=${tmppid-$RUN/arbiterd.pid}
 else
-    ARBITERPID="$VAR/arbiterd.pid"
+    ARBITERPID="$RUN/arbiterd.pid"
 fi
 
-###SCHEDULER PART
+ARBITERDEBUGFILE="$LOG/arbiter-debug.log"
+
+
+### SCHEDULER PART ###
 # location of the scheduler daemon configuration
-SCHEDULERCFG="$ETC/schedulerd.ini"
+SCHEDULERCFG="$ETC/daemons/schedulerd.ini"
 
 # The command to launch
 SCHEDULERDAEMON=$BIN/shinken-scheduler
 
-#The SCHEDULER PID
-SCHEDULERPID="$VAR/schedulerd.pid"
+# The SCHEDULER PID
+SCHEDULERPID="$RUN/schedulerd.pid"
+
+SCHEDULERDEBUGFILE="$LOG/scheduler-debug.log"
 
 
-###POLLER PART
+### POLLER PART ###
 # location of the poller daemon configuration
-POLLERCFG="$ETC/pollerd.ini"
+POLLERCFG="$ETC/daemons/pollerd.ini"
 
 # The command to launch
 POLLERDAEMON=$BIN/shinken-poller
 
-#The poller pid
-POLLERPID="$VAR/pollerd.pid"
+# The poller pid
+POLLERPID="$RUN/pollerd.pid"
+
+POLLERDEBUGFILE="$LOG/poller-debug.log"
 
 
-###REACTIONNER PART
+### REACTIONNER PART ###
 # location of the reactionner daemon configuration
-REACTIONNERCFG="$ETC/reactionnerd.ini"
+REACTIONNERCFG="$ETC/daemons/reactionnerd.ini"
 
 # The command to launch
 REACTIONNERDAEMON=$BIN/shinken-reactionner
 
 #The reactionner pid
-REACTIONNERPID="$VAR/reactionnerd.pid"
+REACTIONNERPID="$RUN/reactionnerd.pid"
+
+REACTIONNERDEBUGFILE="$LOG/reactionner-debug.log"
 
 
-###BROKER PART
+### BROKER PART ###
 # location of the broker daemon configuration
-BROKERCFG="$ETC/brokerd.ini"
+BROKERCFG="$ETC/daemons/brokerd.ini"
 
 # The command to launch
 BROKERDAEMON=$BIN/shinken-broker
 
-#The broker pid
-BROKERPID="$VAR/brokerd.pid"
+# The broker pid
+BROKERPID="$RUN/brokerd.pid"
+
+BROKERDEBUGFILE="$LOG/broker-debug.log"
 
 
-###RECEIVER PART
-# location of the broker daemon configuration
-RECEIVERCFG="$ETC/receiverd.ini"
+### RECEIVER PART ###
+# location of the broker receiver configuration
+RECEIVERCFG="$ETC/daemons/receiverd.ini"
 
 # The command to launch
 RECEIVERDAEMON=$BIN/shinken-receiver
 
-#The broker pid
-RECEIVERPID="$VAR/receiverd.pid"
+#The receiver pid
+RECEIVERPID="$RUN/receiverd.pid"
+
+RECEIVERDEBUGFILE="$LOG/receiver-debug.log"
 
 
-# nicelevel to run nagios daemon with
+
+# nicelevel to run shinken daemon with
 NICENESS=5
 
+# user/group for the var/run rights
+SHINKENUSER=shinken
+SHINKENGROUP=shinken
+HOME=`grep ^$SHINKENUSER: /etc/passwd | cut -d: -f 6`
